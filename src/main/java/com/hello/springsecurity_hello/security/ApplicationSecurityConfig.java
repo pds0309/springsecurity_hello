@@ -12,6 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.util.concurrent.TimeUnit;
 
 import static com.hello.springsecurity_hello.security.ApplicationUserPermission.COURSE_WRITE;
 import static com.hello.springsecurity_hello.security.ApplicationUserRole.*;
@@ -46,7 +49,25 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest()
                 .authenticated()
                 .and()
-                .httpBasic();
+                //form authentication
+                .formLogin()
+                .loginPage("/login")
+                .permitAll()
+                .defaultSuccessUrl("/courses", true)
+                .usernameParameter("username")
+                .passwordParameter("password")
+                .and()
+                .rememberMe().tokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(21))
+                .rememberMeParameter("remem")
+                .and()
+                .logout()
+                // logout 을 GET 으로 쓸거면 설정해야 함 , csrf 설정 키면 이거 지워야 됨
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
+                .logoutUrl("/logout")
+                .clearAuthentication(true)
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID", "remember-me")
+                .logoutSuccessUrl("/login");
     }
 
     @Override
