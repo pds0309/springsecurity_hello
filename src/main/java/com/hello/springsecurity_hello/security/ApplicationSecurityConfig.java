@@ -1,6 +1,10 @@
 package com.hello.springsecurity_hello.security;
 
 import com.hello.springsecurity_hello.auth.ApplicationUserService;
+import com.hello.springsecurity_hello.jwt.JwtConfig;
+import com.hello.springsecurity_hello.jwt.JwtSecretKey;
+import com.hello.springsecurity_hello.jwt.JwtTokenVerifier;
+import com.hello.springsecurity_hello.jwt.JwtUsernameAndPasswordAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,14 +14,10 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
 
 import static com.hello.springsecurity_hello.security.ApplicationUserPermission.COURSE_WRITE;
 import static com.hello.springsecurity_hello.security.ApplicationUserRole.*;
@@ -30,6 +30,8 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final PasswordEncoder passwordEncoder;
     private final ApplicationUserService applicationUserService;
+    private final JwtConfig jwtConfig;
+    private final SecretKey secretKey;
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -42,8 +44,16 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
          */
         http
                 .csrf().disable()
+                // the jwt can guarantees backend server being stateless
+                .sessionManagement()
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                // add filter
+                // you can access authenticationManager() because we extends WebSecurityConfigurerAdapter
+                .addFilter(new JwtUsernameAndPasswordAuthenticationFilter(authenticationManager(), jwtConfig, secretKey))
+                .addFilterAfter(new JwtTokenVerifier(jwtConfig, secretKey), JwtUsernameAndPasswordAuthenticationFilter.class)
                 .authorizeRequests()
-                .antMatchers("/", "/index", "/css/*", "/js/*").permitAll()
+                .antMatchers("/", "/index", "/css/*", "/js/*", "/login").permitAll()
                 // 특정 자원에 대해서 특정한 권한이 있어야 접근할 수 있도록 설정할 수 있다.
                 // antMatchers 는 순서대로 동작한다.
                 .antMatchers("/api/**").hasRole(STUDENT.name())
@@ -51,27 +61,29 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.POST, "/management/api/**").hasRole(COURSE_WRITE.getPermission())
                 .antMatchers("/management/api/**").hasAnyRole(ADMIN.name(), MANAGER.name())
                 .anyRequest()
-                .authenticated()
-                .and()
-                //form authentication
-                .formLogin()
-                .loginPage("/login")
-                .permitAll()
-                .defaultSuccessUrl("/courses", true)
-                .usernameParameter("username")
-                .passwordParameter("password")
-                .and()
-                .rememberMe().tokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(21))
-                .rememberMeParameter("remem")
-                .and()
-                .logout()
-                // logout 을 GET 으로 쓸거면 설정해야 함 , csrf 설정 키면 이거 지워야 됨
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
-                .logoutUrl("/logout")
-                .clearAuthentication(true)
-                .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID", "remember-me")
-                .logoutSuccessUrl("/login");
+                .authenticated();
+
+        // was form based Authentication
+//                .and()
+//                //form authentication
+//                .formLogin()
+//                .loginPage("/login")
+//                .permitAll()
+//                .defaultSuccessUrl("/courses", true)
+//                .usernameParameter("username")
+//                .passwordParameter("password")
+//                .and()
+//                .rememberMe().tokenValiditySeconds((int) TimeUnit.DAYS.toSeconds(21))
+//                .rememberMeParameter("remem")
+//                .and()
+//                .logout()
+//                // logout 을 GET 으로 쓸거면 설정해야 함 , csrf 설정 키면 이거 지워야 됨
+//                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
+//                .logoutUrl("/logout")
+//                .clearAuthentication(true)
+//                .invalidateHttpSession(true)
+//                .deleteCookies("JSESSIONID", "remember-me")
+//                .logoutSuccessUrl("/login");
     }
 
     @Override
