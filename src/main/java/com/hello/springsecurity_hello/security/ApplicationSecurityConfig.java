@@ -1,9 +1,12 @@
 package com.hello.springsecurity_hello.security;
 
+import com.hello.springsecurity_hello.auth.ApplicationUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -26,6 +29,7 @@ import static com.hello.springsecurity_hello.security.ApplicationUserRole.*;
 public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationUserService applicationUserService;
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -71,30 +75,16 @@ public class ApplicationSecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(daoAuthenticationProvider());
+    }
+
     @Bean
-    protected UserDetailsService userDetailsService() {
-        UserDetails kim = User.builder()
-                .username("킴갑환")
-                .password(passwordEncoder.encode("1234"))
-//                .roles(STUDENT.name()) // ROLE_STUDENT
-                .authorities(STUDENT.getGrantedAuthority())
-                .build();
-
-        UserDetails choi = User.builder()
-                .username("최번개")
-                .password(passwordEncoder.encode("1234"))
-//                .roles(ADMIN.name()) // ROLE_ADMIN
-                .authorities(ADMIN.getGrantedAuthority())
-                .build();
-
-        UserDetails jang = User.builder()
-                .username("장거한")
-                .password(passwordEncoder.encode("1234"))
-//                .roles(MANAGER.name()) // ROLE_MANAGER
-                .authorities(MANAGER.getGrantedAuthority())
-                .build();
-
-        return new InMemoryUserDetailsManager(kim, choi, jang);
+    public DaoAuthenticationProvider daoAuthenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setPasswordEncoder(passwordEncoder);
+        provider.setUserDetailsService(applicationUserService);
+        return provider;
     }
 
 }
